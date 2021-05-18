@@ -1,4 +1,4 @@
-import { hacerLogin, sleep,obtenerIntervalo } from "../../../server/bemanager";
+import { hacerLogin, sleep, obtenerIntervalo } from "../../../server/bemanager";
 import PlayerResumenModel from "../../../models/playerResumen";
 import MovimientoModel from "../../../models/movimiento";
 import PlayerModel from "../../../models/player";
@@ -29,44 +29,54 @@ const extraerDatosJugador = async (auth, cookie, id) => {
 };
 
 export default async (req, res) => {
-  const {
-    query: { id },
-  } = req;
-await establecerConexion();
-  console.log(id);
+  
+  await establecerConexion();
+  
 
   let { auth, cookie } = await hacerLogin();
-  let allPlayers = await PlayerResumenModel.find({});
+  let allPlayers = await PlayerResumenModel.find();
   /*allPlayers = allPlayers.filter(p=>!p.owners || p.owners.length<=0);*/
-  console.log("allPlayers", allPlayers)
-  
+  console.log("allPlayers", allPlayers);
+
   for (let i = 0; i < allPlayers.length; i++) {
-    let datos = null;    
-    let player = allPlayers[i];    
-    let existente = await PlayerModel.findById(player._id);
-    if(existente) {
-      console.log("Existe => ", player.id);
-      continue;
-    }
-    console.log("player.id => ",player.id);
+    let datos = null;
+    let player = allPlayers[i];
+    //let existente = await PlayerModel.findById(player._id);
+    // if (existente) {
+    //   console.log("Existe => ", player.id);
+    //   continue;
+    // }
+    console.log("player.id => ", player.id);
     datos = await extraerDatosJugador(auth, cookie, player.id);
     //console.log("RESPUESTA ",datos);
-    try{
-    datos._id = datos.player.id;
-    console.log("player._id => ",datos._id);
-    PlayerModel.insertMany(datos);
-    // if (datos && datos.owners.length > 1) {
-    //   let movimientos = await MovimientoModel.insertMany(datos.owners);
-    //   allPlayers[i].movimientos = movimientos;
-    //   await allPlayers[i].save();      
-    // }
-    await sleep(await obtenerIntervalo(2200,6000));    
-    }
-    catch(e2) {
+    try {
+      datos._id = datos.player.id;
+      console.log("player._id => ", datos.owners);
+      let aux = await PlayerModel.findByIdAndUpdate(datos._id,datos,{
+        "new": true
+      });
+      console.log("AUX ", aux.owners)
+      await sleep(await obtenerIntervalo(2200, 6000));
+    } catch (e2) {
       console.log("Petado", e2);
-      await sleep(6000); 
+      await sleep(6000);
+      let res = await hacerLogin();
+      auth = res.auth;
+      cookie = res.cookie;
+      try{
+        datos = await extraerDatosJugador(auth, cookie, player.id);
+        datos._id = datos.player.id;
+        console.log("Desde el catch player._id => ", datos.owners);
+        await PlayerModel.findByIdAndUpdate(datos._id,datos,{
+          "new": true
+        });
+      }catch(e3){
+        console.log("REPETADO")
+      }
     }
   }
 
   res.json(allPlayers);
 };
+
+const procesarPlayers = async (allPlayers) => {};
